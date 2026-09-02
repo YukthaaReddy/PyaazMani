@@ -582,6 +582,20 @@ def get_theme_css(theme: str = "light", font_size: str = "normal") -> str:
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
         }}
+        .pm-chapter-grid-anchor + div[data-testid="stHorizontalBlock"],
+        .pm-chapter-grid-anchor ~ div[data-testid="stHorizontalBlock"] {{
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 12px !important;
+            align-items: stretch !important;
+        }}
+        .pm-chapter-grid-anchor + div[data-testid="stHorizontalBlock"] > div,
+        .pm-chapter-grid-anchor ~ div[data-testid="stHorizontalBlock"] > div {{
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            flex: 1 1 0 !important;
+        }}
         .pm-chapter-card {{
             padding: 18px 12px;
             min-height: 160px;

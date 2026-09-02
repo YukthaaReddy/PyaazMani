@@ -186,6 +186,7 @@ with top_cols[0]:
             st.session_state.role = "farmer"
             st.session_state.user_name = ROLES["farmer"]["default_name"]
             st.session_state.user_id = ROLES["farmer"]["default_user"]
+            st.session_state.active_chapter = "home"
             st.rerun()
 
     with r_cols[1]:
@@ -194,6 +195,7 @@ with top_cols[0]:
             st.session_state.role = "inspector"
             st.session_state.user_name = ROLES["inspector"]["default_name"]
             st.session_state.user_id = ROLES["inspector"]["default_user"]
+            st.session_state.active_chapter = "home"
             st.rerun()
 
     with r_cols[2]:
@@ -202,6 +204,7 @@ with top_cols[0]:
             st.session_state.role = "official"
             st.session_state.user_name = ROLES["official"]["default_name"]
             st.session_state.user_id = ROLES["official"]["default_user"]
+            st.session_state.active_chapter = "home"
             st.rerun()
 
 with top_cols[1]:
@@ -298,7 +301,8 @@ if st.session_state.active_chapter == "home":
 
     visible_chapters = [c for c in chapters if c["visible"]]
 
-    # Responsive Grid Layout matching screenshot
+    # Responsive chapter grid: on mobile, keep only the application chapters in a 2-column layout
+    st.markdown('<div class="pm-chapter-grid-anchor"></div>', unsafe_allow_html=True)
     num_cols = 2 if len(visible_chapters) <= 4 else 3
     grid_cols = st.columns(num_cols)
 
