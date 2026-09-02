@@ -138,16 +138,3 @@ You may also use port 8051 if preferred:
 python -m streamlit run app.py --server.port 8051
 ```
 
-## Run Notes
-
-- The app expects the project folder to be run from the `onion grading` directory.
-- If Streamlit is not recognized globally, use `python -m streamlit ...` instead of `streamlit ...`.
-- The app initializes the SQLite database automatically on first run.
-
-## License
-
-This project is for educational and demonstration purposes and can be extended for real agricultural deployment scenarios.
-
-## Contact
-
-For questions, improvements, or deployment support, please connect through the project repository or the maintainer contact on the GitHub project page.
