@@ -4,9 +4,11 @@ Modular Chapter-Based Architecture with High-Contrast Theming & Role Logins.
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import tempfile
 import html
 import io
+import json
 import textwrap
 import re
 import importlib
@@ -84,10 +86,37 @@ if "user_coords" not in st.session_state:
     st.session_state.user_coords = (20.0059, 73.7898)
     st.session_state.user_location_key = "city_nashik"
 
+if "voice_assistant" not in st.session_state:
+    st.session_state.voice_assistant = False
+
 lang = st.session_state.lang
 theme = st.session_state.theme
 font_size = st.session_state.font_size
 role = st.session_state.role
+
+
+def speak_with_browser_voice(text: str, language: str = "en-US") -> None:
+    """Trigger browser speech synthesis if the user has enabled the voice assistant."""
+    if not st.session_state.get("voice_assistant", False) or not text:
+        return
+
+    script = f"""
+    <script>
+      function speakVoiceAssistant() {{
+        const text = {json.dumps(text)};
+        const lang = {json.dumps(language)};
+        if ('speechSynthesis' in window) {{
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = lang;
+          utterance.rate = 1;
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(utterance);
+        }}
+      }}
+      speakVoiceAssistant();
+    </script>
+    """
+    components.html(script, height=0)
 
 # Apply Scoped Dynamic CSS
 st.markdown(get_theme_css(theme=theme, font_size=font_size), unsafe_allow_html=True)
@@ -209,7 +238,7 @@ with top_cols[0]:
 
 with top_cols[1]:
     # Quick Language Selector
-    lang_opts = {"en": "English", "hi": "हिन्दी", "kn": "ಕನ್ನಡ"}
+    lang_opts = {"en": "English", "hi": "हिन्दी", "kn": "ಕನ್ನಡ", "bn": "বাংলা", "mr": "मराठी", "ta": "தமிழ்"}
     new_lang = st.selectbox(
         "Language",
         options=list(lang_opts.keys()),
@@ -898,7 +927,7 @@ elif st.session_state.active_chapter == "settings":
 
     # Language Settings
     st.markdown(f'<div class="pm-section-title">🌐 {t("lang_section", lang)}</div>', unsafe_allow_html=True)
-    l_col1, l_col2, l_col3 = st.columns(3)
+    l_col1, l_col2, l_col3, l_col4, l_col5, l_col6 = st.columns(6)
 
     with l_col1:
         if st.button("English", use_container_width=True, type="primary" if lang == "en" else "secondary", key="lang_en_btn"):
@@ -914,6 +943,36 @@ elif st.session_state.active_chapter == "settings":
         if st.button("ಕನ್ನಡ (Kannada)", use_container_width=True, type="primary" if lang == "kn" else "secondary", key="lang_kn_btn"):
             st.session_state.lang = "kn"
             st.rerun()
+
+    with l_col4:
+        if st.button("বাংলা (Bengali)", use_container_width=True, type="primary" if lang == "bn" else "secondary", key="lang_bn_btn"):
+            st.session_state.lang = "bn"
+            st.rerun()
+
+    with l_col5:
+        if st.button("मराठी (Marathi)", use_container_width=True, type="primary" if lang == "mr" else "secondary", key="lang_mr_btn"):
+            st.session_state.lang = "mr"
+            st.rerun()
+
+    with l_col6:
+        if st.button("தமிழ் (Tamil)", use_container_width=True, type="primary" if lang == "ta" else "secondary", key="lang_ta_btn"):
+            st.session_state.lang = "ta"
+            st.rerun()
+
+    st.write("")
+
+    st.markdown('<div class="pm-section-title">🎙️ Voice Assistant</div>', unsafe_allow_html=True)
+    voice_enabled = st.toggle("Enable Voice Assistant", value=st.session_state.voice_assistant, key="voice_assistant_toggle")
+    st.session_state.voice_assistant = voice_enabled
+
+    if voice_enabled:
+        st.success("Voice assistant is ON. The browser can read the current guidance aloud.")
+    else:
+        st.info("Voice assistant is OFF. Turn it on to enable spoken guidance.")
+
+    if st.button("🔊 Test Voice Assistant", use_container_width=True, key="voice_assistant_test"):
+        speech_text = "Voice assistant is ready. PyaazMani is running." if voice_enabled else "Voice assistant is currently off."
+        speak_with_browser_voice(speech_text, language="en-US")
 
     st.write("")
 
