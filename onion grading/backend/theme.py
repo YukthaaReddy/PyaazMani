@@ -527,9 +527,38 @@ def get_theme_css(theme: str = "light", font_size: str = "normal") -> str:
     .stTextInput input, .stNumberInput input, .stSelectbox select {{
         border-radius: 10px !important;
         border: 1.5px solid {border_color} !important;
-        background-color: {bg_card} !important;
-        color: {text_primary} !important;
+        background-color: #2B2B2B !important;
+        color: #FFFFFF !important;
         font-weight: 600 !important;
+    }}
+
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="select"] > div > div,
+    div[data-baseweb="select"] > div > div > div,
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] div,
+    div[data-baseweb="select"] p,
+    div[data-baseweb="select"] li,
+    div[role="listbox"] *,
+    .stSelectbox [data-baseweb="select"] * {{
+        color: #FFFFFF !important;
+        background-color: #2B2B2B !important;
+    }}
+
+    div[role="listbox"] {{
+        background-color: #2B2B2B !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }}
+
+    div[role="option"] {{
+        color: #FFFFFF !important;
+        background-color: #2B2B2B !important;
+    }}
+
+    div[role="option"]:hover,
+    div[role="option"][aria-selected="true"] {{
+        background-color: rgba(236, 72, 153, 0.35) !important;
+        color: #FFFFFF !important;
     }}
 
     /* Mobile Responsive Optimizations */
