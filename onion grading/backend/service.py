@@ -10,35 +10,72 @@ from backend.database import get_last_hash, save_record
 from backend.ledger import prepare_record
 
 
-def calculate_quality_score(confidence: float, grade: str, features: list, disease_info: dict) -> float:
-    """Calculate normalized quality index (0 - 100)."""
-    score = confidence * 100.0
+def evaluate_lot(grade: str | None, confidence: float, features: list, disease_info: dict) -> dict:
+    """Reject lots that are unsafe or unsellable and enforce grade score ranges (Grade A: 90-100, Grade B: 70-89, Grade C: 50-69, Below 50: Rejected)."""
+    severity = disease_info.get("severity", "Low")
+    urs_percentage = float(disease_info.get("urs_percentage", 0.0) or 0.0)
+    is_healthy = bool(disease_info.get("is_healthy", True))
+    spot_ratio = features[8] if len(features) > 8 else 0.0
 
+    score = confidence * 100.0
     if grade == "A":
         score += 8.0
+    elif grade == "B":
+        score -= 4.0
     elif grade == "C":
-        score -= 15.0
+        score -= 10.0
 
-    # Spot ratio penalty
-    spot_ratio = features[8] if len(features) > 8 else 0.0
-    score -= min(35.0, spot_ratio * 150.0)
+    if not is_healthy:
+        if severity == "Severe":
+            score -= 30.0
+        elif severity == "Moderate":
+            score -= 15.0
+        elif severity == "Low":
+            score -= 5.0
 
-    # Circularity reward
-    circularity = features[2] if len(features) > 2 else 0.8
-    if circularity > 0.82:
-        score += 4.0
+    score -= (urs_percentage * 0.3)
 
-    # Disease penalty
-    if not disease_info.get("is_healthy", True):
-        sev = disease_info.get("severity", "Low")
-        if sev == "Severe":
-            score -= 22.0
-        elif sev == "Moderate":
-            score -= 12.0
-        else:
-            score -= 6.0
+    rejected = (
+        (not is_healthy and severity == "Severe")
+        or urs_percentage >= 50
+        or spot_ratio >= 0.18
+        or score < 50.0
+    )
 
-    return round(max(5.0, min(99.5, score)), 1)
+    if rejected:
+        final_score = round(max(0.0, min(49.9, score)), 1)
+        return {
+            "rejected": True,
+            "grade": None,
+            "quality_score": final_score,
+            "message": "This onion cannot be consumed. Its quality score is below 50 (or severely damaged), so it is qualified as REJECTED in red highlight and cannot be assigned any grade.",
+        }
+
+    score_ranges = {
+        "A": (90.0, 100.0),
+        "B": (70.0, 89.0),
+        "C": (50.0, 69.0),
+    }
+    lower, upper = score_ranges.get(grade or "C", (50.0, 69.0))
+    score = max(lower, min(upper, round(score, 1)))
+    if grade == "A":
+        score = max(90.0, min(100.0, score))
+    elif grade == "B":
+        score = max(70.0, min(89.0, score))
+    elif grade == "C":
+        score = max(50.0, min(69.0, score))
+
+    return {
+        "rejected": False,
+        "grade": grade,
+        "quality_score": round(score, 1),
+        "message": "",
+    }
+
+
+def calculate_quality_score(confidence: float, grade: str, features: list, disease_info: dict) -> float:
+    """Calculate normalized quality index in the required grade band."""
+    return evaluate_lot(grade, confidence, features, disease_info)["quality_score"]
 
 
 def estimate_price(grade: str, quality_score: float, disease_info: dict) -> float:
@@ -74,21 +111,58 @@ def analyze_onion(
     Complete PyaazMani evaluation pipeline:
     Image -> ML Grader -> Disease Pathology -> URS% -> Price -> Cryptographic Ledger Record
     """
-    # 1. AI Visual Grading
     ai_res = grade_onion(image_path)
-    grade = ai_res["grade"]  # "A", "B", or "C"
+    grade = ai_res["grade"]
     confidence = ai_res["confidence"]
     features = ai_res["features"]
-
-    # 2. Disease Pathology & URS% Detection
     disease_info = detect_disease_and_urs(features=features, grade=grade, lang=lang)
 
-    # 3. Quality Index & Pricing
-    quality_score = calculate_quality_score(confidence, grade, features, disease_info)
+    decision = evaluate_lot(grade, confidence, features, disease_info)
+    if decision["rejected"]:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        previous_hash = get_last_hash()
+        rejected_record = {
+            "farmer_name": farmer_name,
+            "farmer_id": farmer_id,
+            "lot_id": lot_id,
+            "center": center,
+            "quantity": quantity,
+            "grade": "REJECTED",
+            "confidence": confidence,
+            "quality_score": decision["quality_score"],
+            "urs_percentage": disease_info["urs_percentage"],
+            "disease_name": disease_info["disease_name"],
+            "disease_severity": disease_info["severity_text"],
+            "remedy": disease_info["remedy"],
+            "price_per_kg": 0.0,
+            "total_value": 0.0,
+            "role": role,
+            "timestamp": timestamp,
+            "features": features
+        }
+        rejected_record = prepare_record(rejected_record, previous_hash)
+        return {
+            "grade": None,
+            "confidence": confidence,
+            "quality_score": decision["quality_score"],
+            "urs_percentage": disease_info["urs_percentage"],
+            "disease_name": disease_info["disease_name"],
+            "disease_severity": disease_info["severity_text"],
+            "disease_severity_raw": disease_info["severity"],
+            "remedy": disease_info["remedy"],
+            "is_healthy": disease_info["is_healthy"],
+            "price_per_kg": 0.0,
+            "total_value": 0.0,
+            "features": features,
+            "rejected": True,
+            "message": decision["message"],
+            "record": rejected_record,
+        }
+
+    quality_score = decision["quality_score"]
     price_per_kg = estimate_price(grade, quality_score, disease_info)
     total_value = round(price_per_kg * quantity, 2)
 
-    # 4. Prepare Ledger Entry
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     previous_hash = get_last_hash()
 
@@ -127,6 +201,8 @@ def analyze_onion(
         "price_per_kg": price_per_kg,
         "total_value": total_value,
         "features": features,
+        "rejected": False,
+        "message": "",
         "record": record
     }
 

@@ -1,6 +1,6 @@
 # PyaazMani
 
-PyaazMani is a smart onion quality and mandi intelligence platform built with Streamlit. It helps farmers, mandi inspectors, and government officials assess onion quality using AI-powered grading, detect diseases and pathologies, compare local mandi prices, and generate official PDF records for traceability and reporting.
+PyaazMani is a smart onion quality and mandi intelligence platform with a Flutter frontend and Python API. It helps farmers, mandi inspectors, and government officials assess onion quality using AI-powered grading, detect diseases and pathologies, compare local mandi prices, and generate official PDF records for traceability and reporting.
 
 ## Overview
 
@@ -48,7 +48,8 @@ PyaazMani combines machine learning, regional mandi data, and an accessible mult
 ## Tech Stack
 
 - Python
-- Streamlit
+- Flutter
+- FastAPI
 - OpenCV
 - NumPy
 - Pandas
@@ -120,21 +121,29 @@ cd "onion grading"
 pip install -r requirements.txt
 ```
 
-### 4) Run the app locally
+### 4) Run the Python API locally
 
 ```bash
-python -m streamlit run app.py --server.port 8501
+python -m uvicorn api:app --reload --port 8000
 ```
 
-Then open the browser at:
+The API is available at:
 
 ```text
-http://localhost:8501
+http://localhost:8000
 ```
 
-You may also use port 8051 if preferred:
+### 5) Run the Flutter frontend
 
 ```bash
-python -m streamlit run app.py --server.port 8051
+cd flutter_frontend
+flutter pub get
+flutter run -d chrome --dart-define=API_URL=http://127.0.0.1:8000
+```
+
+For a release web build:
+
+```bash
+flutter build web --dart-define=API_URL=http://127.0.0.1:8000
 ```
 

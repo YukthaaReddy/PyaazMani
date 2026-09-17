@@ -198,20 +198,23 @@ def generate_pdf_report(record: dict) -> bytes:
     # ----------------------------------------------------
     elements.append(Paragraph("2. AI QUALITY GRADING SCORECARD", section_heading))
 
-    grade = str(record.get("grade", "A")).split("_")[-1]
+    raw_grade = str(record.get("grade", "A"))
+    grade = raw_grade.split("_")[-1] if raw_grade else "REJECTED"
     conf = float(record.get("confidence", 0.90))
     score = float(record.get("quality_score", 85.0))
     urs = float(record.get("urs_percentage", 3.2))
     rate = float(record.get("price_per_kg", 28.0))
     total_val = float(record.get("total_value", rate * float(record.get("quantity", 100.0))))
 
-    grade_color = "#15803D" if grade == "A" else ("#C2410C" if grade == "B" else "#DC2626")
+    is_rejected = (grade in ["None", "REJECTED", ""] or score < 50.0)
+    grade_color = "#DC2626" if is_rejected else ("#15803D" if grade == "A" else ("#C2410C" if grade == "B" else "#DC2626"))
+    grade_text = "REJECTED" if is_rejected else f"GRADE {grade}"
 
     score_data = [
         [
-            Paragraph(f"<font color='{grade_color}' size=18><b>GRADE {grade}</b></font>", ParagraphStyle('G', alignment=TA_CENTER)),
+            Paragraph(f"<font color='{grade_color}' size=16><b>{grade_text}</b></font>", ParagraphStyle('G', alignment=TA_CENTER)),
             Paragraph(f"<font color='{c_primary}' size=13><b>{conf:.1%}</b></font><br/><font size=7 color='#6B7280'>AI CONFIDENCE</font>", ParagraphStyle('C', alignment=TA_CENTER)),
-            Paragraph(f"<font color='{c_primary}' size=13><b>{score:.1f}/100</b></font><br/><font size=7 color='#6B7280'>QUALITY INDEX</font>", ParagraphStyle('S', alignment=TA_CENTER)),
+            Paragraph(f"<font color='{grade_color if is_rejected else c_primary}' size=13><b>{score:.1f}/100</b></font><br/><font size=7 color='#6B7280'>QUALITY INDEX</font>", ParagraphStyle('S', alignment=TA_CENTER)),
             Paragraph(f"<font color='{c_primary}' size=13><b>{urs:.1f}%</b></font><br/><font size=7 color='#6B7280'>URS DEFECT RATE</font>", ParagraphStyle('U', alignment=TA_CENTER)),
             Paragraph(f"<font color='#047857' size=13><b>₹{rate:.1f}/kg</b></font><br/><font size=7 color='#6B7280'>EST. MANDI RATE</font>", ParagraphStyle('R', alignment=TA_CENTER)),
             Paragraph(f"<font color='#047857' size=13><b>₹{total_val:,.0f}</b></font><br/><font size=7 color='#6B7280'>EST. LOT VALUE</font>", ParagraphStyle('V', alignment=TA_CENTER))

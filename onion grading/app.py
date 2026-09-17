@@ -496,31 +496,41 @@ elif st.session_state.active_chapter == "grade":
     # ----------------------------------------------------
     if st.session_state.last_result:
         res = st.session_state.last_result
-        grade = res["grade"]
-        conf = res["confidence"]
-        score = res["quality_score"]
-        urs = res["urs_percentage"]
-        rate = res["price_per_kg"]
-        total_val = res["total_value"]
-        disease_name = res["disease_name"]
-        severity = res["disease_severity"]
-        remedy = res["remedy"]
-        is_healthy = res["is_healthy"]
+        grade = res.get("grade")
+        conf = res.get("confidence", 0.0)
+        score = res.get("quality_score", 0.0)
+        urs = res.get("urs_percentage", 0.0)
+        rate = res.get("price_per_kg", 0.0)
+        total_val = res.get("total_value", 0.0)
+        disease_name = res.get("disease_name", "Healthy")
+        severity = res.get("disease_severity", "None")
+        remedy = res.get("remedy", "")
+        is_healthy = res.get("is_healthy", True)
+        is_rejected = res.get("rejected", False) or grade is None or score < 50.0
 
         st.markdown("---")
         st.markdown(f'<div class="pm-section-title">📊 {t("results_title", lang)}</div>', unsafe_allow_html=True)
 
-        grade_class = f"grade-{grade.lower()}"
-        grade_title_key = f"grade_{grade.lower()}_title"
-        grade_desc_key = f"grade_{grade.lower()}_desc"
+        if is_rejected:
+            render_html(f"""
+            <div class="pm-grade-box grade-rejected" style="background-color: #FEF2F2; border: 3px solid #EF4444; color: #991B1B; padding: 24px; border-radius: 14px; text-align: center;">
+                <h1 style="color: #DC2626; font-size: 30px; margin: 0; font-weight: 900;">🔴 REJECTED — NO GRADE ASSIGNED</h1>
+                <p style="font-size: 18px; font-weight: bold; margin-top: 8px; color: #991B1B;">{t('quality_score', lang)}: {score:.1f} / 100 ({t('below_50_rejected', lang)})</p>
+                <div style="font-size: 14px; margin-top: 6px; color: #B91C1C; font-weight: 600;">{t('rejected_no_grade_msg', lang)}</div>
+            </div>
+            """)
+        else:
+            grade_class = f"grade-{grade.lower()}"
+            grade_title_key = f"grade_{grade.lower()}_title"
+            grade_desc_key = f"grade_{grade.lower()}_desc"
 
-        render_html(f"""
-        <div class="pm-grade-box {grade_class}">
-            <h1>{t('grade_badge', lang).upper()} {html.escape(grade)}</h1>
-            <p>{html.escape(t(grade_title_key, lang))}</p>
-            <div style="font-size: 13px; opacity: 0.95; margin-top: 6px;">{html.escape(t(grade_desc_key, lang))}</div>
-        </div>
-        """)
+            render_html(f"""
+            <div class="pm-grade-box {grade_class}">
+                <h1>{t('grade_badge', lang).upper()} {html.escape(grade)}</h1>
+                <p>{html.escape(t(grade_title_key, lang))}</p>
+                <div style="font-size: 13px; opacity: 0.95; margin-top: 6px;">{html.escape(t(grade_desc_key, lang))}</div>
+            </div>
+            """)
 
         # Metric Tiles
         m1, m2, m3, m4 = st.columns(4)
@@ -533,10 +543,13 @@ elif st.session_state.active_chapter == "grade":
             """)
 
         with m2:
+            tile_style = "border: 2px solid #EF4444; background: #FEF2F2;" if is_rejected else ""
+            val_style = "color: #DC2626;" if is_rejected else ""
+            lbl_extra = " (REJECTED)" if is_rejected else ""
             render_html(f"""
-            <div class="pm-metric-tile">
-                <div class="pm-metric-val">{score:.1f}/100</div>
-                <div class="pm-metric-lbl">{t('quality_score', lang)}</div>
+            <div class="pm-metric-tile" style="{tile_style}">
+                <div class="pm-metric-val" style="{val_style}">{score:.1f}/100</div>
+                <div class="pm-metric-lbl">{t('quality_score', lang)}{lbl_extra}</div>
             </div>
             """)
 
@@ -731,7 +744,7 @@ elif st.session_state.active_chapter == "reports":
             search_query = st.text_input(t("search_records", lang), placeholder=t("search_placeholder", lang))
 
         with f2:
-            grade_filter = st.selectbox(t("filter_grade", lang), [t("all_grades", lang), "Grade A", "Grade B", "Grade C"])
+            grade_filter = st.selectbox(t("filter_grade", lang), [t("all_grades", lang), "Grade A", "Grade B", "Grade C", "Rejected"])
 
         with f3:
             st.metric(t("total_certified_records", lang), len(records))
@@ -749,9 +762,16 @@ elif st.session_state.active_chapter == "reports":
                 )
 
             match_grade = True
+            raw_rec_grade = str(rec.get("grade", ""))
+            rec_score = float(rec.get("quality_score", 85.0))
+            is_rec_rejected = (raw_rec_grade in ["REJECTED", "None", "NoneType"] or rec_score < 50.0)
+
             if grade_filter != t("all_grades", lang):
-                selected_letter = grade_filter.split()[-1]
-                match_grade = (rec["grade"].split("_")[-1] == selected_letter)
+                if grade_filter == "Rejected":
+                    match_grade = is_rec_rejected
+                else:
+                    selected_letter = grade_filter.split()[-1]
+                    match_grade = (not is_rec_rejected and raw_rec_grade.split("_")[-1] == selected_letter)
 
             if match_search and match_grade:
                 filtered_records.append(rec)
@@ -760,8 +780,23 @@ elif st.session_state.active_chapter == "reports":
 
         if filtered_records:
             for rec in filtered_records:
-                grade_letter = rec["grade"].split("_")[-1]
-                grade_badge_color = "#15803D" if grade_letter == "A" else ("#C2410C" if grade_letter == "B" else "#DC2626")
+                raw_rec_grade = str(rec.get("grade", ""))
+                rec_score = float(rec.get("quality_score", 85.0))
+                is_rec_rejected = (raw_rec_grade in ["REJECTED", "None", "NoneType"] or rec_score < 50.0)
+                grade_letter = raw_rec_grade.split("_")[-1]
+
+                if is_rec_rejected:
+                    grade_badge_color = "#DC2626"
+                    grade_badge_html = "<span style='color: #DC2626; font-weight: 900;'>🔴 REJECTED (NO GRADE)</span>"
+                elif grade_letter == "A":
+                    grade_badge_color = "#15803D"
+                    grade_badge_html = f"<span style='color: {grade_badge_color}; font-weight: 900;'>{t('grade_badge', lang).upper()} A</span>"
+                elif grade_letter == "B":
+                    grade_badge_color = "#C2410C"
+                    grade_badge_html = f"<span style='color: {grade_badge_color}; font-weight: 900;'>{t('grade_badge', lang).upper()} B</span>"
+                else:
+                    grade_badge_color = "#DC2626"
+                    grade_badge_html = f"<span style='color: {grade_badge_color}; font-weight: 900;'>{t('grade_badge', lang).upper()} C</span>"
 
                 with st.container():
                     render_html(f"""
@@ -769,7 +804,7 @@ elif st.session_state.active_chapter == "reports":
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div style="font-size: 18px; font-weight: 900;">
                                 🧅 {t('batch_lot_lbl', lang)}: <b>{html.escape(str(rec['lot_id']))}</b> &nbsp;—&nbsp;
-                                <span style="color: {grade_badge_color}; font-weight: 900;">{t('grade_badge', lang).upper()} {html.escape(grade_letter)}</span>
+                                {grade_badge_html}
                             </div>
                             <div style="font-size: 12px; color: { '#475569' if theme == 'light' else '#FBCFE8' }; font-weight: 700;">
                                 🕒 {html.escape(str(rec['timestamp']))}
@@ -783,7 +818,7 @@ elif st.session_state.active_chapter == "reports":
                             <span>⭐ <b>{t('quality_score_lbl', lang)}:</b> {rec['quality_score']:.1f}/100</span>
                             <span>🔬 <b>{t('urs_lbl', lang)}:</b> {rec.get('urs_percentage', 2.0):.1f}%</span>
                             <span>🩺 <b>{t('pathology_lbl', lang)}:</b> {html.escape(str(rec.get('disease_name', 'Healthy')))}</span>
-                            <span>💰 <b>{t('valuation_lbl', lang)}:</b> ₹{rec.get('price_per_kg', 25.0):.1f}/kg (₹{rec.get('total_value', 2500.0):,.0f})</span>
+                            <span>💰 <b>{t('valuation_lbl', lang)}:</b> ₹{rec.get('price_per_kg', 0.0):.1f}/kg (₹{rec.get('total_value', 0.0):,.0f})</span>
                         </div>
                         <div style="margin-top: 10px; font-family: monospace; font-size: 11px; color: { '#475569' if theme == 'light' else '#FBCFE8' }; word-break: break-all;">
                             🔐 <b>{t('sha256_seal_lbl', lang)}:</b> {html.escape(str(rec['record_hash']))}
