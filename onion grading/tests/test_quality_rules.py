@@ -1,4 +1,19 @@
+from backend.disease_detector import detect_disease_and_urs
 from backend.service import calculate_quality_score, evaluate_lot
+
+
+def test_grade_a_has_no_disease_and_low_urs():
+    result = detect_disease_and_urs([1000, 90, 0.82, 20, 60, 120, 10, 2, 0.02, 0.02], "A", "en")
+    assert result["is_healthy"] is True
+    assert result["disease_name"] == "Healthy — No Pathological Infection"
+    assert 0.0 <= result["urs_percentage"] <= 3.0
+
+
+def test_grade_b_and_c_follow_grade_specific_urs_ranges():
+    grade_b = detect_disease_and_urs([1000, 90, 0.82, 20, 60, 120, 10, 2, 0.02, 0.02], "B", "en")
+    grade_c = detect_disease_and_urs([1000, 90, 0.82, 20, 60, 120, 10, 2, 0.08, 0.02], "C", "en")
+    assert grade_b["urs_percentage"] > 5.0
+    assert 5.0 <= grade_c["urs_percentage"] <= 8.0
 
 
 def test_grade_score_ranges_are_enforced():

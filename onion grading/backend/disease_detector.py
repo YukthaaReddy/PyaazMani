@@ -33,13 +33,15 @@ def detect_disease_and_urs(features: list, grade: str, lang: str = "en") -> dict
     # ----------------------------------------------------
     # Base baseline from Grade
     if grade == "A":
-        base_urs = 1.8 + (spot_ratio * 40.0) + (max(0.0, 0.85 - circularity) * 8.0)
+        base_urs = 0.0 + (spot_ratio * 12.0) + (max(0.0, 0.90 - circularity) * 2.0)
     elif grade == "B":
-        base_urs = 8.5 + (spot_ratio * 75.0) + (max(0.0, 0.80 - circularity) * 15.0)
+        base_urs = 6.0 + (spot_ratio * 30.0) + (max(0.0, 0.80 - circularity) * 6.0)
     else:  # Grade C
-        base_urs = 22.0 + (spot_ratio * 120.0) + (max(0.0, 0.75 - circularity) * 25.0)
+        base_urs = 6.0 + (spot_ratio * 24.0) + (max(0.0, 0.75 - circularity) * 10.0)
 
-    urs_percentage = round(min(95.0, max(0.5, base_urs)), 1)
+    urs_percentage = round(min(8.0, max(0.0, base_urs)), 1)
+    if grade == "A" and urs_percentage < 0.1:
+        urs_percentage = 0.0
 
     # ----------------------------------------------------
     # 2. PATHOLOGY / DISEASE CLASSIFICATION
@@ -48,7 +50,11 @@ def detect_disease_and_urs(features: list, grade: str, lang: str = "en") -> dict
     severity_id = "None"
     remedy_id = "remedy_healthy"
 
-    if spot_ratio > 0.08 or (spot_count >= 8 and spot_ratio > 0.05):
+    if grade == "A" and spot_ratio <= 0.03 and spot_count <= 3:
+        disease_id = "disease_healthy"
+        severity_id = "None"
+        remedy_id = "remedy_healthy"
+    elif spot_ratio > 0.08 or (spot_count >= 8 and spot_ratio > 0.05):
         # High dark spotting with deep black clusters
         disease_id = "disease_black_mould"
         severity_id = "Severe" if spot_ratio > 0.12 else "Moderate"

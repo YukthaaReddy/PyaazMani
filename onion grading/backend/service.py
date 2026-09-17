@@ -25,6 +25,9 @@ def evaluate_lot(grade: str | None, confidence: float, features: list, disease_i
     elif grade == "C":
         score -= 10.0
 
+    if grade == "A" and disease_info.get("is_healthy", True):
+        score += 5.0
+
     if not is_healthy:
         if severity == "Severe":
             score -= 30.0

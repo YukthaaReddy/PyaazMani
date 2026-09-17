@@ -110,14 +110,6 @@ class Shell extends StatelessWidget {
     return names[role] ?? 'User';
   }
 
-  String _userInitials() {
-    final parts = _userName().trim().split(RegExp(r'\s+'));
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
-    }
-    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-  }
-
   List<Map<String, dynamic>> _navItems() {
     final items = [
       {
@@ -199,7 +191,11 @@ class Shell extends StatelessWidget {
                       radius: 24,
                       backgroundColor: Theme.of(context).colorScheme.primary,
                       child: Text(
-                        _userInitials(),
+                        _userName()
+                            .split(RegExp(r'\s+'))
+                            .take(2)
+                            .map((part) => part.substring(0, 1).toUpperCase())
+                            .join(),
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, color: Colors.white),
                       ),
@@ -211,6 +207,8 @@ class Shell extends StatelessWidget {
                         children: [
                           Text(
                             _userName(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
@@ -261,18 +259,37 @@ class Shell extends StatelessWidget {
   Widget _content() {
     switch (page) {
       case 1:
-        return GradePage(role: role, lang: lang);
+        return GradePage(
+          role: role,
+          lang: lang,
+          onBack: () => onPage(0),
+        );
       case 2:
-        return MandiPage(lang: lang);
+        return MandiPage(
+          lang: lang,
+          onBack: () => onPage(0),
+        );
       case 3:
         return role == 'official'
-            ? ReportsPage(role: role, lang: lang)
+            ? ReportsPage(
+                role: role,
+                lang: lang,
+                onBack: () => onPage(0),
+              )
             : HomePage(onPage: onPage, role: role);
       case 4:
-        return AnalyticsPage(lang: lang);
+        return AnalyticsPage(
+          lang: lang,
+          onBack: () => onPage(0),
+        );
       case 5:
         return SettingsPage(
-            dark: dark, lang: lang, onTheme: onTheme, onLang: onLang);
+          dark: dark,
+          lang: lang,
+          onTheme: onTheme,
+          onLang: onLang,
+          onBack: () => onPage(0),
+        );
       default:
         return HomePage(onPage: onPage, role: role);
     }
@@ -329,30 +346,29 @@ class HomePage extends StatelessWidget {
   final String role;
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.sizeOf(context).width < 600;
     final chapterCards = [
       ActionCard(
-          icon: Icons.biotech,
-          accent: Colors.green,
+          icon: Icons.biotech_outlined,
+          accent: const Color(0xFF22C55E),
           title: tr('nav_grade'),
           text: tr('nav_grade_desc'),
           onTap: () => onPage(1)),
       ActionCard(
-          icon: Icons.storefront,
-          accent: Colors.orange,
+          icon: Icons.storefront_outlined,
+          accent: const Color(0xFFF59E0B),
           title: tr('nav_mandi'),
           text: tr('nav_mandi_desc'),
           onTap: () => onPage(2)),
       if (role == 'official')
         ActionCard(
             icon: Icons.description_outlined,
-            accent: Colors.indigo,
+            accent: const Color(0xFF6366F1),
             title: tr('nav_reports'),
             text: tr('nav_reports_desc'),
             onTap: () => onPage(3)),
       ActionCard(
-          icon: Icons.insights,
-          accent: Colors.purple,
+          icon: Icons.insights_outlined,
+          accent: const Color(0xFF8B5CF6),
           title: tr('nav_analytics'),
           text: tr('nav_analytics_desc'),
           onTap: () => onPage(4)),
@@ -365,12 +381,12 @@ class HomePage extends StatelessWidget {
           subtitle: tr('home_hero_desc')),
       const SizedBox(height: 30),
       GridView.count(
-        crossAxisCount: isMobile ? 2 : 4,
+        crossAxisCount: 4,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: isMobile ? 0.96 : 1.08,
+        childAspectRatio: 1.08,
         children: chapterCards,
       ),
       const SizedBox(height: 28),
@@ -397,9 +413,14 @@ class HomePage extends StatelessWidget {
 }
 
 class GradePage extends StatefulWidget {
-  const GradePage({super.key, required this.role, required this.lang});
+  const GradePage(
+      {super.key,
+      required this.role,
+      required this.lang,
+      required this.onBack});
   final String role;
   final String lang;
+  final VoidCallback onBack;
   @override
   State<GradePage> createState() => _GradePageState();
 }
@@ -451,51 +472,63 @@ class _GradePageState extends State<GradePage> {
   }
 
   @override
-  Widget build(BuildContext context) => ListView(children: [
-        Header(
-            eyebrow: tr('section_photo'),
-            title: tr('grade_header'),
-            subtitle: tr('grade_subtitle')),
-        const SizedBox(height: 26),
-        SectionCard(
-            title: tr('section_lot_info'),
-            child: Wrap(spacing: 14, runSpacing: 14, children: [
-              field(tr('farmer_name'), name),
-              field(tr('farmer_id'), farmerId),
-              field(tr('lot_id'), lot),
-              field(tr('quantity_kg'), quantity)
-            ])),
-        const SizedBox(height: 16),
-        SectionCard(
-            title: tr('section_photo'),
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              OutlinedButton.icon(
-                  onPressed: pick,
-                  icon: const Icon(Icons.upload_file),
-                  label: Text(
-                      bytes == null ? tr('upload_dropzone_title') : fileName)),
-              if (bytes != null)
-                Padding(
-                    padding: const EdgeInsets.only(top: 16),
-                    child:
-                        Image.memory(bytes!, height: 180, fit: BoxFit.cover)),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                  onPressed: loading ? null : run,
-                  icon: const Icon(Icons.auto_awesome),
-                  label: Text(
-                      loading ? tr('analyzing_spinner') : tr('btn_grade'))),
-              if (error.isNotEmpty)
-                Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(error,
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.error))),
-            ])),
-        if (result != null)
-          ResultCard(result: result!, role: widget.role, lang: widget.lang),
-      ]);
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: widget.onBack,
+          ),
+          title: Text(tr('nav_grade')),
+        ),
+        body: ListView(children: [
+          Header(
+              eyebrow: tr('section_photo'),
+              title: tr('grade_header'),
+              subtitle: tr('grade_subtitle')),
+          const SizedBox(height: 26),
+          SectionCard(
+              title: tr('section_lot_info'),
+              child: Wrap(spacing: 14, runSpacing: 14, children: [
+                field(tr('farmer_name'), name),
+                field(tr('farmer_id'), farmerId),
+                field(tr('lot_id'), lot),
+                field(tr('quantity_kg'), quantity)
+              ])),
+          const SizedBox(height: 16),
+          SectionCard(
+              title: tr('section_photo'),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    OutlinedButton.icon(
+                        onPressed: pick,
+                        icon: const Icon(Icons.upload_file),
+                        label: Text(bytes == null
+                            ? tr('upload_dropzone_title')
+                            : fileName)),
+                    if (bytes != null)
+                      Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: Image.memory(bytes!,
+                              height: 180, fit: BoxFit.cover)),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                        onPressed: loading ? null : run,
+                        icon: const Icon(Icons.auto_awesome),
+                        label: Text(loading
+                            ? tr('analyzing_spinner')
+                            : tr('btn_grade'))),
+                    if (error.isNotEmpty)
+                      Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(error,
+                              style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error))),
+                  ])),
+          if (result != null)
+            ResultCard(result: result!, role: widget.role, lang: widget.lang),
+        ]),
+      );
 
   Widget field(String label, TextEditingController controller) => SizedBox(
       width: 230,
@@ -616,8 +649,9 @@ class _ResultCardState extends State<ResultCard> {
 }
 
 class MandiPage extends StatefulWidget {
-  const MandiPage({super.key, required this.lang});
+  const MandiPage({super.key, required this.lang, required this.onBack});
   final String lang;
+  final VoidCallback onBack;
   @override
   State<MandiPage> createState() => _MandiPageState();
 }
@@ -631,41 +665,55 @@ class _MandiPageState extends State<MandiPage> {
   }
 
   @override
-  Widget build(BuildContext context) => ListView(children: [
-        Header(
-            eyebrow: tr('nearest_mandi'),
-            title: tr('mandi_header'),
-            subtitle: tr('mandi_subtitle')),
-        const SizedBox(height: 24),
-        FutureBuilder<List<dynamic>>(
-            future: future,
-            builder: (context, snapshot) {
-              if (!snapshot.hasData)
-                return const Center(child: CircularProgressIndicator());
-              return Column(
-                  children: snapshot.data!
-                      .map((mandi) => Card(
-                            child: ListTile(
-                              leading: const CircleAvatar(
-                                  child: Icon(Icons.storefront)),
-                              title: Text(mandi['name']),
-                              subtitle: Text(
-                                  '${mandi['district']}, ${mandi['state']}  |  ${number((mandi['distance_km'] as num).toDouble(), widget.lang, decimals: 1)} ${tr('distance_away')}\n${tr('daily_arrivals_lbl')}: ${number((mandi['arrivals_qtl'] as num).toDouble(), widget.lang)} ${tr('qtl_unit')}  |  ${tr('price_trend')}: ${tr('trend_${mandi['trend']}')}'),
-                              trailing: Text(
-                                  '₹${number((mandi['modal_price_per_kg'] as num).toDouble(), widget.lang, decimals: 2)}/kg',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold)),
-                            ),
-                          ))
-                      .toList());
-            }),
-      ]);
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: widget.onBack,
+          ),
+          title: Text(tr('nav_mandi')),
+        ),
+        body: ListView(children: [
+          Header(
+              eyebrow: tr('nearest_mandi'),
+              title: tr('mandi_header'),
+              subtitle: tr('mandi_subtitle')),
+          const SizedBox(height: 24),
+          FutureBuilder<List<dynamic>>(
+              future: future,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData)
+                  return const Center(child: CircularProgressIndicator());
+                return Column(
+                    children: snapshot.data!
+                        .map((mandi) => Card(
+                              child: ListTile(
+                                leading: const CircleAvatar(
+                                    child: Icon(Icons.storefront)),
+                                title: Text(mandi['name']),
+                                subtitle: Text(
+                                    '${mandi['district']}, ${mandi['state']}  |  ${number((mandi['distance_km'] as num).toDouble(), widget.lang, decimals: 1)} ${tr('distance_away')}\n${tr('daily_arrivals_lbl')}: ${number((mandi['arrivals_qtl'] as num).toDouble(), widget.lang)} ${tr('qtl_unit')}  |  ${tr('price_trend')}: ${tr('trend_${mandi['trend']}')}'),
+                                trailing: Text(
+                                    '₹${number((mandi['modal_price_per_kg'] as num).toDouble(), widget.lang, decimals: 2)}/kg',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold)),
+                              ),
+                            ))
+                        .toList());
+              }),
+        ]),
+      );
 }
 
 class ReportsPage extends StatefulWidget {
-  const ReportsPage({super.key, required this.role, required this.lang});
+  const ReportsPage(
+      {super.key,
+      required this.role,
+      required this.lang,
+      required this.onBack});
   final String role;
   final String lang;
+  final VoidCallback onBack;
   @override
   State<ReportsPage> createState() => _ReportsPageState();
 }
@@ -680,109 +728,141 @@ class _ReportsPageState extends State<ReportsPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.role != 'official')
-      return Header(
+    if (widget.role != 'official') {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: widget.onBack,
+          ),
+          title: Text(tr('nav_reports')),
+        ),
+        body: Header(
           eyebrow: tr('badge_gov_exclusive'),
           title: tr('reports_header'),
-          subtitle: tr('gov_restricted_msg'));
-    return ListView(children: [
-      Header(
-          eyebrow: tr('reports_header'),
-          title: tr('reports_header'),
-          subtitle: tr('reports_subtitle')),
-      const SizedBox(height: 24),
-      FutureBuilder<List<dynamic>>(
-          future: future,
-          builder: (context, snapshot) {
-            if (!snapshot.hasData)
-              return const Center(child: CircularProgressIndicator());
-            if (snapshot.data!.isEmpty) return Text(tr('no_records'));
-            return Column(
-                children: snapshot.data!
-                    .map((record) => Card(
-                          child: ListTile(
-                            leading: CircleAvatar(
-                                child: Text(record['grade']
-                                    .toString()
-                                    .split('_')
-                                    .last)),
-                            title: Text(
-                                '${record['lot_id']}  |  ${record['farmer_name']}'),
-                            subtitle: Text(
-                                '${record['center']}  |  ${record['timestamp']}\n${tr('quality_score')}: ${number((record['quality_score'] as num).toDouble(), widget.lang, decimals: 1)}  |  ${record['disease_name']}'),
-                            trailing: IconButton(
-                              tooltip: 'Download PDF',
-                              icon: const Icon(Icons.picture_as_pdf),
-                              onPressed: () => launchUrl(Uri.parse(
-                                  '$apiBase/api/records/${record['id']}/pdf')),
+          subtitle: tr('gov_restricted_msg'),
+        ),
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: widget.onBack,
+        ),
+        title: Text(tr('nav_reports')),
+      ),
+      body: ListView(children: [
+        Header(
+            eyebrow: tr('reports_header'),
+            title: tr('reports_header'),
+            subtitle: tr('reports_subtitle')),
+        const SizedBox(height: 24),
+        FutureBuilder<List<dynamic>>(
+            future: future,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData)
+                return const Center(child: CircularProgressIndicator());
+              if (snapshot.data!.isEmpty) return Text(tr('no_records'));
+              return Column(
+                  children: snapshot.data!
+                      .map((record) => Card(
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                  child: Text(record['grade']
+                                      .toString()
+                                      .split('_')
+                                      .last)),
+                              title: Text(
+                                  '${record['lot_id']}  |  ${record['farmer_name']}'),
+                              subtitle: Text(
+                                  '${record['center']}  |  ${record['timestamp']}\n${tr('quality_score')}: ${number((record['quality_score'] as num).toDouble(), widget.lang, decimals: 1)}  |  ${record['disease_name']}'),
+                              trailing: IconButton(
+                                tooltip: 'Download PDF',
+                                icon: const Icon(Icons.picture_as_pdf),
+                                onPressed: () => launchUrl(Uri.parse(
+                                    '$apiBase/api/records/${record['id']}/pdf')),
+                              ),
                             ),
-                          ),
-                        ))
-                    .toList());
-          })
-    ]);
+                          ))
+                      .toList());
+            })
+      ]),
+    );
   }
 }
 
 class AnalyticsPage extends StatelessWidget {
-  const AnalyticsPage({super.key, required this.lang});
+  const AnalyticsPage({super.key, required this.lang, required this.onBack});
   final String lang;
+  final VoidCallback onBack;
   @override
-  Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
-      future: Api.analytics(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData)
-          return const Center(child: CircularProgressIndicator());
-        final data = snapshot.data!;
-        final counts = Map<String, dynamic>.from(data['grade_counts']);
-        return ListView(children: [
-          Header(
-              eyebrow: tr('nav_analytics'),
-              title: tr('analytics_header'),
-              subtitle: tr('analytics_subtitle')),
-          const SizedBox(height: 24),
-          Wrap(spacing: 14, runSpacing: 14, children: [
-            Metric(
-                label: tr('stat_total_lots'),
-                value: number((data['total_lots'] as num).toDouble(), lang)),
-            Metric(
-                label: tr('stat_total_volume'),
-                value:
-                    '${number((data['total_quantity'] as num).toDouble(), lang)} kg'),
-            Metric(
-                label: tr('stat_avg_score'),
-                value:
-                    '${number((data['average_score'] as num).toDouble(), lang, decimals: 1)} / ${number(100, lang)}')
-          ]),
-          const SizedBox(height: 24),
-          SectionCard(
-              title: tr('chart_grade_dist'),
-              child: Column(
-                  children: ['A', 'B', 'C']
-                      .map((grade) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 7),
-                            child: Row(children: [
-                              SizedBox(
-                                  width: 28,
-                                  child: Text(grade,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold))),
-                              Expanded(
-                                  child: LinearProgressIndicator(
-                                      value: (counts[grade] ?? 0) /
-                                          (data['total_lots'] == 0
-                                              ? 1
-                                              : data['total_lots']),
-                                      minHeight: 12)),
-                              const SizedBox(width: 12),
-                              Text(number(
-                                  (counts[grade] as num? ?? 0).toDouble(),
-                                  lang)),
-                            ]),
-                          ))
-                      .toList())),
-        ]);
-      });
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: onBack,
+          ),
+          title: Text(tr('nav_analytics')),
+        ),
+        body: FutureBuilder<Map<String, dynamic>>(
+            future: Api.analytics(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData)
+                return const Center(child: CircularProgressIndicator());
+              final data = snapshot.data!;
+              final counts = Map<String, dynamic>.from(data['grade_counts']);
+              return ListView(children: [
+                Header(
+                    eyebrow: tr('nav_analytics'),
+                    title: tr('analytics_header'),
+                    subtitle: tr('analytics_subtitle')),
+                const SizedBox(height: 24),
+                Wrap(spacing: 14, runSpacing: 14, children: [
+                  Metric(
+                      label: tr('stat_total_lots'),
+                      value:
+                          number((data['total_lots'] as num).toDouble(), lang)),
+                  Metric(
+                      label: tr('stat_total_volume'),
+                      value:
+                          '${number((data['total_quantity'] as num).toDouble(), lang)} kg'),
+                  Metric(
+                      label: tr('stat_avg_score'),
+                      value:
+                          '${number((data['average_score'] as num).toDouble(), lang, decimals: 1)} / ${number(100, lang)}')
+                ]),
+                const SizedBox(height: 24),
+                SectionCard(
+                    title: tr('chart_grade_dist'),
+                    child: Column(
+                        children: ['A', 'B', 'C']
+                            .map((grade) => Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 7),
+                                  child: Row(children: [
+                                    SizedBox(
+                                        width: 28,
+                                        child: Text(grade,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold))),
+                                    Expanded(
+                                        child: LinearProgressIndicator(
+                                            value: (counts[grade] ?? 0) /
+                                                (data['total_lots'] == 0
+                                                    ? 1
+                                                    : data['total_lots']),
+                                            minHeight: 12)),
+                                    const SizedBox(width: 12),
+                                    Text(number(
+                                        (counts[grade] as num? ?? 0).toDouble(),
+                                        lang)),
+                                  ]),
+                                ))
+                            .toList()))
+              ]);
+            }),
+      );
 }
 
 class SettingsPage extends StatelessWidget {
@@ -791,44 +871,55 @@ class SettingsPage extends StatelessWidget {
       required this.dark,
       required this.lang,
       required this.onTheme,
-      required this.onLang});
+      required this.onLang,
+      required this.onBack});
   final bool dark;
   final String lang;
   final VoidCallback onTheme;
   final ValueChanged<String> onLang;
+  final VoidCallback onBack;
   @override
-  Widget build(BuildContext context) => ListView(children: [
-        Header(
-            eyebrow: tr('lang_section'),
-            title: tr('settings_header'),
-            subtitle: tr('settings_subtitle')),
-        const SizedBox(height: 24),
-        SectionCard(
-            title: tr('theme_section'),
-            child: SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(tr('theme_dark')),
-                value: dark,
-                onChanged: (_) => onTheme())),
-        const SizedBox(height: 16),
-        SectionCard(
-            title: tr('lang_section'),
-            child: DropdownButtonFormField<String>(
-                value: lang,
-                items: const [
-                  DropdownMenuItem(value: 'en', child: Text('English')),
-                  DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
-                  DropdownMenuItem(value: 'kn', child: Text('ಕನ್ನಡ')),
-                  DropdownMenuItem(value: 'ta', child: Text('தமிழ்')),
-                  DropdownMenuItem(value: 'mr', child: Text('मराठी')),
-                  DropdownMenuItem(value: 'bn', child: Text('বাংলা')),
-                ],
-                onChanged: (value) {
-                  if (value != null) onLang(value);
-                },
-                decoration:
-                    const InputDecoration(border: OutlineInputBorder())))
-      ]);
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: onBack,
+          ),
+          title: Text(tr('nav_settings')),
+        ),
+        body: ListView(children: [
+          Header(
+              eyebrow: tr('lang_section'),
+              title: tr('settings_header'),
+              subtitle: tr('settings_subtitle')),
+          const SizedBox(height: 24),
+          SectionCard(
+              title: tr('theme_section'),
+              child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(tr('theme_dark')),
+                  value: dark,
+                  onChanged: (_) => onTheme())),
+          const SizedBox(height: 16),
+          SectionCard(
+              title: tr('lang_section'),
+              child: DropdownButtonFormField<String>(
+                  value: lang,
+                  items: const [
+                    DropdownMenuItem(value: 'en', child: Text('English')),
+                    DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
+                    DropdownMenuItem(value: 'kn', child: Text('ಕನ್ನಡ')),
+                    DropdownMenuItem(value: 'ta', child: Text('தமிழ்')),
+                    DropdownMenuItem(value: 'mr', child: Text('मराठी')),
+                    DropdownMenuItem(value: 'bn', child: Text('বাংলা')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) onLang(value);
+                  },
+                  decoration:
+                      const InputDecoration(border: OutlineInputBorder()))),
+        ]),
+      );
 }
 
 class Header extends StatelessWidget {
@@ -894,22 +985,38 @@ class ActionCard extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(18),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 54,
-                  height: 54,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
-                    color: accent.withOpacity(0.14),
-                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(
+                      colors: [
+                        accent,
+                        accent.withOpacity(0.75),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withOpacity(0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 6),
+                      )
+                    ],
+                    borderRadius: BorderRadius.circular(18),
                   ),
-                  child: Icon(icon, size: 30, color: accent),
+                  child: Icon(icon, size: 30, color: Colors.white),
                 ),
                 const SizedBox(height: 18),
                 Text(
@@ -927,9 +1034,9 @@ class ActionCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Align(
+                Align(
                   alignment: Alignment.centerRight,
-                  child: Icon(Icons.arrow_forward),
+                  child: Icon(Icons.arrow_forward_rounded, color: accent),
                 ),
               ],
             ),
